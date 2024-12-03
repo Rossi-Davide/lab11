@@ -5,6 +5,7 @@ import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.summingDouble;
 import static java.util.stream.Collectors.summingInt;
 
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -52,7 +53,10 @@ public final class MusicGroupImpl implements MusicGroup {
 
     @Override
     public int countSongs(final String albumName) {
-        return (int) songs.stream().filter(song -> song.getAlbumName().equals(Optional.of(albumName))).count();
+        return (int) songs.stream()
+            .filter(song -> song.getAlbumName().isPresent())
+            .filter(song -> song.getAlbumName().get().equals(albumName))
+            .count();
     }
 
     @Override
@@ -62,7 +66,13 @@ public final class MusicGroupImpl implements MusicGroup {
 
     @Override
     public OptionalDouble averageDurationOfSongs(final String albumName) {
-        return OptionalDouble.of(songs.stream().filter(song -> song.getAlbumName().equals(Optional.of(albumName))).collect(averagingDouble(song -> song.getDuration())));
+        return OptionalDouble.of(
+            songs.stream()
+            .filter(s -> s.getAlbumName().isPresent())
+            //non wrappare i parametri da controllare in degli optional, prima filtro via gli empty optional, poi posso fare un get
+            .filter(song -> song.getAlbumName().get().equals(albumName))
+            .collect(averagingDouble(Song::getDuration))
+            );
     }
 
     @Override
@@ -72,7 +82,14 @@ public final class MusicGroupImpl implements MusicGroup {
 
     @Override
     public Optional<String> longestAlbum() {
-        return songs.stream().collect(groupingBy(Song::getAlbumName, summingDouble(Song::getDuration))).entrySet().stream().max(((o1,o2) -> Double.compare(o1.getValue(), o2.getValue()))).map(Map.Entry::getKey).get();
+        return songs.stream()
+            .filter(s -> s.getAlbumName().isPresent())
+            .collect(groupingBy(Song::getAlbumName, summingDouble(Song::getDuration)))
+            .entrySet()
+            .stream()
+            .max(Comparator.comparingDouble(Map.Entry::getValue))
+            .map(Map.Entry::getKey)
+            .get();
     }
 
     private static final class Song {
